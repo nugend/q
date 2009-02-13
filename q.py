@@ -28,10 +28,11 @@ import select
 import array
 import struct
 import time
+import datetime
 
 SYNC=True
 ASYNC=False
-nt = [ 0, 1, 0, 0, 1, 2, 4, 8, 4, 8, 1, 0, 0, 4, 4, 8, 0, 4, 4, 4 ]
+nt = [ 0, 1, 0, 0, 1, 2, 4, 8, 4, 8, 1, 0, 0, 4, 4, 8, 0, 4, 4, 4 ]  #byte length of different datatypes
  
 
 class Month:
@@ -116,7 +117,11 @@ def td(x):
     for item in a.y: y.append(item)
     for item in b.y: y.append(item)
     return Flip(Dict(x,y))
-                
+          
+          
+k = 86400000L * 10957
+
+      
 class q:
     
     RECONNECT_ATTEMPTS = 5  # Number of reconnect attempts to make before throwing exception
@@ -126,19 +131,19 @@ class q:
     
     
     # offset the long version of the date by the timezone
-    def o(x):
+    def o(self, x):
         return x.timezone
     
-    def lg(x):
-        return x + o(x)
+    def lg(self, x):
+        return x + self.o(x)
     
-    def gl(x):
-        return x - o(x - o(x))
+    def gl(self, x):
+        return x - self.o(x - self.o(x))
         
-    k = 86400000L * 10957
     
     
-    def wt(z):
+    
+    def wt(self, z):
         l = z.time()
         w( l == nj if nf else (lg(l) - k) / 8.64e7)
         
@@ -186,15 +191,15 @@ class q:
         #return self.n(x.x) if isinstance(x, dict) else self.n(x.y[0]) if isinstance(x, flip) else len(x);
         return self.n(x.x) if isinstance(x, Dict) else len(x);
     
-    def nx(self, x):
+    def _nx(self, x):
         i = 0
-        qtype = self.qtype(x)
+        qtype = self._qtype(x)
         j = 6
         n = self.n(x)
         j += n * nt[qtype];
         return j;
     
-    def qtype(self, x):
+    def _qtype(self, x):
         """Encode the type of x as an integer that is interpreted by q"""
         #TODO figure out how to deal with array types
         if isinstance(x, array.array):
@@ -218,14 +223,14 @@ class q:
 			99 if isinstance(x, Flip) else \
 			0
     
-    def write(x, message):
+    def _write(x, message):
     	"""determine the type of x and write it to the binary message for output"""
-    	t = qtype(x)
+    	t = _qtype(x)
     	message.fromstring(struct.pack('b', t))
     	
         def writeDict( x, y):
-            write(x)
-            write(y)
+            _write(x)
+            _write(y)
             
     	{-1: lambda: message.fromstring(struct.pack('b', x)),
     	-6: lambda: message.fromstring(struct.pack('>i', x)),
@@ -241,12 +246,12 @@ class q:
     	
     def k(self, query):
         global SYNC
-        if isinstance(query, str): self.send(SYNC, array.array('c',query))
-        else: self.send(SYNC, query)
-        return self.readFromServer()
+        if isinstance(query, str): self._send(SYNC, array.array('c',query))
+        else: self._send(SYNC, query)
+        return self._readFromServer()
         
-    def send(self, sync, query):
-        n = self.nx(query) + 8
+    def _send(self, sync, query):
+        n = self._nx(query) + 8
         if sync:
             message = array.array('b', [0,1,0,0]) # 1 for synchronous requests
         else:
@@ -257,135 +262,147 @@ class q:
         message.fromstring(query)
         self.sock.send(message)
        
-    def readFromServer(self):
+    def _readFromServer(self):
         """read the response from the server"""
         header = self.sock.recv(8)
         little_endian = struct.unpack('b', header[0:1])[0] == 1  #byte order
         
         self.offset = 4
-        dataSize = self.ri(little_endian, header)
+        dataSize = self._ri(little_endian, header)
         
         inputBytes = self.sock.recv(dataSize - 8)
         if struct.unpack_from('b', inputBytes, 0)[0] == -128 :
             self.offset = 1
-            raise Exception(self.rs(little_endian, inputBytes))
+            raise Exception(self._rs(little_endian, inputBytes))
         self.offset =0
-        return self.r(little_endian, inputBytes)
+        return self._r(little_endian, inputBytes)
     
-    def rb(self, little_endian, bytearray):
+    def _rb(self, little_endian, bytearray):
         """retrieve byte from bytearray at offset"""
         val = struct.unpack('b', bytearray[self.offset:self.offset+1])[0]
         self.offset+=1
         return val
     
-    def rc(self, little_endian, bytearray):
+    def _rc(self, little_endian, bytearray):
         """retrieve char from bytearray at offset"""
         val = struct.unpack('c', bytearray[self.offset:self.offset+1])[0]
         self.offset+=1
         return val
     
-    def ri(self, little_endian, bytearray):
+    def _ri(self, little_endian, bytearray):
         """retrieve integer from bytearray at offset"""
         val = struct.unpack('i' if little_endian else '>i', bytearray[self.offset:self.offset+4])[0]
         self.offset+=4
         return val
     
-    def re(self, little_endian, bytearray):
+    def _rd(self, little_endian, bytearray):
+        """retrieve integer from bytearray at offset"""
+        val = struct.unpack('i' if little_endian else '>i', bytearray[self.offset:self.offset+4])[0]
+        self.offset+=4
+        return datetime.date.fromordinal(730120+val)  #730120 is the ordinal for 2000-01-01
+     
+    def _rt(self, little_endian, bytearray):
+        """retrieve integer from bytearray at offset"""
+        val = struct.unpack('d' if little_endian else '>d', bytearray[self.offset:self.offset+8])[0]
+        self.offset+=8
+        return datetime.datetime.fromtimestamp(946710000.0+(val*60*60*24))  #946710000 is the timestamp for 1999-12-31 23:00:00
+        
+    def _re(self, little_endian, bytearray):
         """retrieve float from bytearray at offset"""
         val = struct.unpack('f' if little_endian else '>f', bytearray[self.offset:self.offset+4])[0]
         self.offset+=4
         return val
     
-    def rj(self, little_endian, bytearray):
+    def _rj(self, little_endian, bytearray):
         """retrieve long from bytearray at offset"""
         val = struct.unpack('l' if little_endian else '>l', bytearray[self.offset:self.offset+8])[0]
         self.offset+=8
         return val
     
-    def rf(self, little_endian, bytearray):
+    def _rf(self, little_endian, bytearray):
         """retrieve double from bytearray at offset"""
         val = struct.unpack('d' if little_endian else '>d', bytearray[self.offset:self.offset+8])[0]
         self.offset+=8
         return val
     
-    def rh(self, little_endian, bytearray):
+    def _rh(self, little_endian, bytearray):
         """retrieve integer from bytearray at offset"""
         val = struct.unpack('h' if little_endian else '>h', bytearray[self.offset:self.offset+2])[0]
         self.offset+=2
         return val
     
-    def rs(self, little_endian, bytearray):
+    def _rs(self, little_endian, bytearray):
         """retrieve null terminated string from bytearray"""
         end = bytearray.find("\0",self.offset)
         val = bytearray[self.offset:end]
         self.offset = end+1
         return val
                    
-    def r(self, little_endian, bytearray):
+    def _r(self, little_endian, bytearray):
         """General retrieve data from bytearray.  format is type number followed by data""" 
-        t = self.rb(little_endian, bytearray)
+        t = self._rb(little_endian, bytearray)
         readType = {
-            -1: lambda: self.rb(little_endian, bytearray),
-            -4: lambda: self.rb(little_endian, bytearray),
-            -5: lambda: self.rh(little_endian, bytearray),
-            -6: lambda: self.ri(little_endian, bytearray),
-            -7: lambda: self.rj(little_endian, bytearray),
-            -8: lambda: self.re(little_endian, bytearray),
-            -9: lambda: self.rf(little_endian, bytearray),
-            -10: lambda: self.rc(little_endian, bytearray),
-            -11: lambda: self.rs(little_endian, bytearray),
-            -13: lambda: Month(self.ri(little_endian, bytearray)),
-            -14: lambda: self.ri(little_endian, bytearray),
-            -15: lambda: self.rf(little_endian, bytearray),
-            -17: lambda: Minute(self.ri(little_endian, bytearray)),
-            -18: lambda: Second(self.ri(little_endian, bytearray)),
-            -19: lambda: self.ri(little_endian, bytearray),
-            0: lambda: self.r(little_endian, bytearray),
-            1: lambda: self.rb(little_endian, bytearray),
-             4: lambda: self.rb(little_endian, bytearray),
-             5: lambda: self.rh(little_endian, bytearray),
-             6: lambda: self.ri(little_endian, bytearray),
-             7: lambda: self.rj(little_endian, bytearray),
-             8: lambda: self.re(little_endian, bytearray),
-             9: lambda: self.rf(little_endian, bytearray),
-             10: lambda: self.rc(little_endian, bytearray),
-             11: lambda: self.rs(little_endian, bytearray),
-             13: lambda: Month(self.ri(little_endian, bytearray)),
-             14: lambda: self.ri(little_endian, bytearray),
-             15: lambda: self.rf(little_endian, bytearray),
-             17: lambda: Minute(self.ri(little_endian, bytearray)),
-             18: lambda: Second(self.ri(little_endian, bytearray)),
-             19: lambda: self.ri(little_endian, bytearray)
+            -1: lambda: self._rb(little_endian, bytearray),
+            -4: lambda: self._rb(little_endian, bytearray),
+            -5: lambda: self._rh(little_endian, bytearray),
+            -6: lambda: self._ri(little_endian, bytearray),
+            -7: lambda: self._rj(little_endian, bytearray),
+            -8: lambda: self._re(little_endian, bytearray),
+            -9: lambda: self._rf(little_endian, bytearray),
+            -10: lambda: self._rc(little_endian, bytearray),
+            -11: lambda: self._rs(little_endian, bytearray),
+            -13: lambda: Month(self._ri(little_endian, bytearray)),
+            -14: lambda: self._rd(little_endian, bytearray),
+            -15: lambda: self._rt(little_endian, bytearray),
+            -17: lambda: Minute(self._ri(little_endian, bytearray)),
+            -18: lambda: Second(self._ri(little_endian, bytearray)),
+            -19: lambda: self._ri(little_endian, bytearray),
+            0: lambda: self._r(little_endian, bytearray),
+            1: lambda: self._rb(little_endian, bytearray),
+             4: lambda: self._rb(little_endian, bytearray),
+             5: lambda: self._rh(little_endian, bytearray),
+             6: lambda: self._ri(little_endian, bytearray),
+             7: lambda: self._rj(little_endian, bytearray),
+             8: lambda: self._re(little_endian, bytearray),
+             9: lambda: self._rf(little_endian, bytearray),
+             10: lambda: self._rc(little_endian, bytearray),
+             11: lambda: self._rs(little_endian, bytearray),
+             13: lambda: Month(self._ri(little_endian, bytearray)),
+             14: lambda: self._ri(little_endian, bytearray),
+             15: lambda: self._rf(little_endian, bytearray),
+             17: lambda: Minute(self._ri(little_endian, bytearray)),
+             18: lambda: Second(self._ri(little_endian, bytearray)),
+             19: lambda: self._ri(little_endian, bytearray)
             }
         if t < 0 :
             #In this case the value is a scalar
             if readType.has_key(t) : return readType[t]()
         if t > 99 :
             if t == 100 :
-                self.rs(little_endian, bytearray)
-                return self.r(little_endian, bytearray)
+                self._rs(little_endian, bytearray)
+                return self._r(little_endian, bytearray)
             if t < 104 :
-                return None if self.rb(little_endian, bytearray) == 0 and t == 101 else "func";
+                return None if self._rb(little_endian, bytearray) == 0 and t == 101 else "func";
             self.offset = len(bytearray)
             return "func"
         
         if t == 99:
-            keys = self.r(little_endian, bytearray)
-            values = self.r(little_endian, bytearray)
+            keys = self._r(little_endian, bytearray)
+            values = self._r(little_endian, bytearray)
             return Dict(keys, values)
         
         self.offset+=1;
         
         if t == 98:
-            return Flip(self.r(little_endian, bytearray))
+            return Flip(self._r(little_endian, bytearray))
         
-        n=self.ri(little_endian, bytearray) #length of the array
+        n=self._ri(little_endian, bytearray) #length of the array
         val = []
         for i in range(0, n):
             item = readType[t]()
             val.append( item )
         return val
         
-        return self.rs(little_endian, bytearray)
+        return self._rs(little_endian, bytearray)
 
         
