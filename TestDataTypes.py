@@ -25,6 +25,12 @@ class TestDataTypes(unittest.TestCase):
     def testDateTime(self):
         self.conn.k('test:2008.09.09T01:01:01.001')
         self.assertEqual(str(self.conn.k('test')), '2008-09-09 01:01:01.001000')
+      
+    def testTime(self):
+        self.conn.k('test:01:01:01.001')
+        val = self.conn.k('test')
+        self.assertEqual(str(self.conn.k('test')), '01:01:01.001000')
         
+          
 if __name__ == '__main__':
     unittest.main()

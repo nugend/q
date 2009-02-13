@@ -300,8 +300,14 @@ class q:
         val = struct.unpack('i' if little_endian else '>i', bytearray[self.offset:self.offset+4])[0]
         self.offset+=4
         return datetime.date.fromordinal(730120+val)  #730120 is the ordinal for 2000-01-01
-     
+    
     def _rt(self, little_endian, bytearray):
+        """retrieve integer from bytearray at offset"""
+        val = struct.unpack('i' if little_endian else '>i', bytearray[self.offset:self.offset+4])[0]
+        self.offset+=4
+        return datetime.time((val/(60*60*1000)), (val/(60*1000) % 60), (val/(1000) % 60), (val % 10000)-1 )  #730120 is the ordinal for 2000-01-01
+     
+    def _rdt(self, little_endian, bytearray):
         """retrieve integer from bytearray at offset"""
         val = struct.unpack('d' if little_endian else '>d', bytearray[self.offset:self.offset+8])[0]
         self.offset+=8
@@ -353,10 +359,10 @@ class q:
             -11: lambda: self._rs(little_endian, bytearray),
             -13: lambda: Month(self._ri(little_endian, bytearray)),
             -14: lambda: self._rd(little_endian, bytearray),
-            -15: lambda: self._rt(little_endian, bytearray),
+            -15: lambda: self._rdt(little_endian, bytearray),
             -17: lambda: Minute(self._ri(little_endian, bytearray)),
             -18: lambda: Second(self._ri(little_endian, bytearray)),
-            -19: lambda: self._ri(little_endian, bytearray),
+            -19: lambda: self._rt(little_endian, bytearray),
             0: lambda: self._r(little_endian, bytearray),
             1: lambda: self._rb(little_endian, bytearray),
              4: lambda: self._rb(little_endian, bytearray),
