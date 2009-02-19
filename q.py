@@ -186,14 +186,13 @@ class q:
         return self.n(x.x) if isinstance(x, Dict) else len(x) if isinstance(x, array.array) or isinstance(x, list) else 1;
     
     def _nx(self, x):
-        i = 0
         qtype = self._qtype(x)
         if qtype == 99:
             return 1 + self._nx(x.x) + self._nx(x.y)
         if qtype == 98:
             return 3 + self._nx(x.x) + self._nx(x.y)
         if qtype < 0:
-            return len(x) if qtype == -11 else 1 + nt[-qtype]
+            return 2+len(x) if qtype == -11 else 1 + nt[-qtype]
         j = 6
         n = self.n(x)
         if qtype == 0 or qtype == 11:
@@ -263,35 +262,58 @@ class q:
     
     def _ws(self, x, message):
         message.fromstring(x)
+        message.fromstring(struct.pack('b',0))
+    
+    def _wdict(self, x, message):
+        self._write(x.x, message)
+        self._write(x.y, message)
+        
+    def _wmms(self, x, message):
+        message.fromstring(struct.pack('>i', x.i))
     
     def _write(self, x, message):
     	"""determine the type of x and write it to the binary message for output"""
     	t = self._qtype(x)
     	message.fromstring(struct.pack('b', t))
     	
-        def writeDict( x, y):
-            self._write(x, message)
-            self._write(y, message)
+        writeType = {
+            -1: self._wb,
+             -4: self._wb,
+             -5: self._wh,
+            -6: self._wi,
+            -7: self._wj,
+            -8: self._we,
+            -9: self._wf,
+            -10: self._wc,            
+            -11: self._ws,
+            -13: self._wmms,
+            -14: self._wd,
+            -15: self._wdt,
+            -17: self._wmms,
+            -18: self._wmms,
+            -19: self._wt,
+            -98: self._wdict,
+            -99: self._wi,
+            0: self._write,
+            1: self._wb,
+             4: self._wb,
+             5: self._wh,
+             6: self._wi,
+             7: self._wj,
+             8: self._we,
+             9: self._wf,
+             10: self._wc,
+             11: self._ws,
+             13: self._wmms,
+             14: self._wd,
+             15: self._wdt,
+             17: self._wmms,
+             18: self._wmms,
+             19: self._wt
+             }
         
         if t < 0 :    
-            {-1: lambda: message.fromstring(struct.pack('b', x)),
-             -4: lambda: message.fromstring(struct.pack('b', x)),
-             -5: lambda: message.fromstring(struct.pack('>h', x)),
-            -6: lambda: message.fromstring(struct.pack('>i', x)),
-            -7: lambda: message.fromstring(struct.pack('>l', x)),
-            -8: lambda: message.fromstring(struct.pack('>f', x)),
-            -9: lambda: message.fromstring(struct.pack('>d', x)),
-            -10: lambda: message.fromstring(struct.pack('c', x)),            
-            -11: lambda: message.fromstring(x),
-            -13: lambda: message.fromstring(struct.pack('>i', x.i)),
-            -14: lambda: message.fromstring(struct.pack('>i', (self.lg( time.mktime(x.timetuple()) )*1000. -k) / 8.64e7 )),
-            -15: lambda: message.fromstring(struct.pack('>d', (self.lg( time.mktime(x.timetuple())+(x.microsecond/1000000.) )*1000. -k) / 8.64e7 )),
-            -17: lambda: message.fromstring(struct.pack('>i', x.i)),
-            -18: lambda: message.fromstring(struct.pack('>i', x.i)),
-            -19: lambda: message.fromstring(struct.pack('>i', ( x.hour*3600 + x.minute*60 + x.second + x.microsecond/1000000. )*1000. )),
-            -98: lambda: writeDict(x.x, x.y),
-            -99: lambda: message.fromstring(struct.pack('>i', x)),
-        	}[t]()
+            writeType[t](x, message)
             return
         
         if t == 99:
@@ -310,24 +332,6 @@ class q:
         n = self.n(x)
         message.fromstring(struct.pack('>i', n))
         
-        writeType = {
-            0: self._write,
-            1: self._wb,
-             4: self._wb,
-             5: self._wh,
-             6: self._wi,
-             7: self._wj,
-             8: self._we,
-             9: self._wf,
-             10: self._wc,
-             11: self._ws,
-             13: self._wi,
-             14: self._wd,
-             15: self._wdt,
-             17: self._wi,
-             18: self._wi,
-             19: self._wt
-             }
         for i in range(0, n):
             writeType[t](x[i], message)
     	

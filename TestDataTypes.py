@@ -56,6 +56,13 @@ class TestDataTypes(unittest.TestCase):
         self.conn.k('test:15:30:15.001')
         self.assertEqual(str(self.conn.k('test')), '15:30:15.001000')
         
+    def testString(self):
+        string = 'teststring'
+        self.conn.k('{[x]test::x}', (string,))
+        self.assertEqual(self.conn.k('test'), string)
+        self.conn.k('test:`$"'+string+'"')
+        self.assertEqual(str(self.conn.k('test')), string)
+        
           
 if __name__ == '__main__':
     unittest.main()
