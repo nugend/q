@@ -42,16 +42,25 @@ class Month:
         m = self.i + 24000
         y = m / 12
         return '%(decade)02d%(year)02d-%(month)02d' % {'decade': y/100, 'year': y % 100, 'month':(m+1)%12}
+    def __eq__(self, obj):
+        if isinstance(obj, Month) : return obj.i == self.i
+        return False
 class Minute:
     def __init__(self, x):
         self.i = x
     def __str__(self):
         return '%(hour)02d:%(minute)02d' % {'hour': self.i/60, 'minute': self.i % 60}
+    def __eq__(self, obj):
+        if isinstance(obj, Minute) : return obj.i == self.i
+        return False
 class Second:
     def __init__(self, x):
         self.i = x
     def __str__(self):
         return '%(minute)s:%(second)02d' % {'minute': str(Minute(self.i/60)), 'second': self.i % 60}
+    def __eq__(self, obj):
+        if isinstance(obj, Second) : return obj.i == self.i
+        return False
 class Dict:
     """Dict is a generalized dict.  It just contains the keys and values as two objects and provides a way to 
     interact with it."""
@@ -120,6 +129,7 @@ def td(x):
           
           
 k = 86400000L * 10957
+STDOFFSET = -time.timezone
 
       
 class q:
@@ -128,31 +138,15 @@ class q:
     RECONNECT_WAIT = 5000 # Milliseconds to wait between reconnect attempts 
     MAX_MSG_QUERY_LENGTH = 1024 # Maximum number of characters from query to return in exception message
     MAX_MSG_LIST_LENGTH = 100 # Maximum length of a data list specified in a query before it is summarized in exception message
-    
-    
-    # offset the long version of the date by the timezone
-    def o(self, x):
-        return x.timezone
-    
+
     def lg(self, x):
-        return x + self.o(x)
+        """local time to UTC offset"""
+        return x + STDOFFSET
     
     def gl(self, x):
-        return x - self.o(x - self.o(x))
-        
-    
-    
-    
-    def wt(self, z):
-        l = z.time()
-        w( l == nj if nf else (lg(l) - k) / 8.64e7)
-        
-    
-    #socket stuff starts here
-    def io(sock):
-        s = sock
-        i = s
-    
+        """UTC to local time offset"""
+        return x - STDOFFSET
+
     def __init__(self, host, port, user):
         self.host=host
         self.port=port
@@ -189,19 +183,30 @@ class q:
         
     def n(self, x):
         #return self.n(x.x) if isinstance(x, dict) else self.n(x.y[0]) if isinstance(x, flip) else len(x);
-        return self.n(x.x) if isinstance(x, Dict) else len(x);
+        return self.n(x.x) if isinstance(x, Dict) else len(x) if isinstance(x, array.array) or isinstance(x, list) else 1;
     
     def _nx(self, x):
         i = 0
         qtype = self._qtype(x)
+        if qtype == 99:
+            return 1 + self._nx(x.x) + self._nx(x.y)
+        if qtype == 98:
+            return 3 + self._nx(x.x) + self._nx(x.y)
+        if qtype < 0:
+            return len(x) if qtype == -11 else 1 + nt[-qtype]
         j = 6
         n = self.n(x)
-        j += n * nt[qtype];
+        if qtype == 0 or qtype == 11:
+            for i in range(0, n):
+                j += self._nx(x[i]) if qtype == 0 else 1 + len(x[i]);
+        else :
+            j += n * nt[qtype];
         return j;
     
     def _qtype(self, x):
         """Encode the type of x as an integer that is interpreted by q"""
         #TODO figure out how to deal with array types
+        if isinstance(x, list): return 0
         if isinstance(x, array.array):
             return 10 if x.typecode == 'c' else \
                10 if x.typecode == 'h' else \
@@ -217,37 +222,124 @@ class q:
 			-7 if isinstance(x, long) else \
 			-11 if isinstance(x, str) else \
 			-13 if isinstance(x, Month) else \
+            -15 if isinstance(x, datetime.datetime) else \
+            -14 if isinstance(x, datetime.date) else \
 			-17 if isinstance(x, Minute) else \
 			-18 if isinstance(x, Second) else \
+            -19 if isinstance(x, datetime.time) else \
 			98 if isinstance(x, Dict) else \
 			99 if isinstance(x, Flip) else \
 			0
     
-    def _write(x, message):
+    def _wb(self, x, message):
+        message.fromstring(struct.pack('b', x))
+    
+    def _wc(self, x, message):
+        message.fromstring(struct.pack('c', x))
+    
+    def _wi(self, x, message):
+        message.fromstring(struct.pack('>i', x))
+    
+    def _wd(self, x, message):
+        message.fromstring(struct.pack('>i', (self.lg( time.mktime(x.timetuple()) )*1000. -k) / 8.64e7 ))
+        
+    def _wdt(self, x, message):
+        message.fromstring(struct.pack('>d', (self.lg( time.mktime(x.timetuple())+(x.microsecond/1000000.) )*1000. -k) / 8.64e7 ))
+        
+    def _wt(self, x, message):
+        message.fromstring(struct.pack('>i', ( x.hour*3600 + x.minute*60 + x.second + x.microsecond/1000000. )*1000. ))
+    
+    def _we(self, x, message):
+        message.fromstring(struct.pack('>f', x))
+    
+    def _wj(self, x, message):
+        message.fromstring(struct.pack('>l', x))
+    
+    def _wf(self, x, message):
+        message.fromstring(struct.pack('>d', x))
+    
+    def _wh(self, x, message):
+        message.fromstring(struct.pack('>h', x))
+    
+    def _ws(self, x, message):
+        message.fromstring(x)
+    
+    def _write(self, x, message):
     	"""determine the type of x and write it to the binary message for output"""
-    	t = _qtype(x)
+    	t = self._qtype(x)
     	message.fromstring(struct.pack('b', t))
     	
         def writeDict( x, y):
-            _write(x)
-            _write(y)
-            
-    	{-1: lambda: message.fromstring(struct.pack('b', x)),
-    	-6: lambda: message.fromstring(struct.pack('>i', x)),
-    	-8: lambda: message.fromstring(struct.pack('>f', x)),
-    	-7: lambda: message.fromstring(struct.pack('>l', x)),
-    	-11: lambda: message.fromstring(x),
-    	-13: lambda: message.fromstring(struct.pack('>i', x.i)),
-    	-17: lambda: message.fromstring(struct.pack('>i', x.i)),
-    	-18: lambda: message.fromstring(struct.pack('>i', x.i)),
-        -98: lambda: writeDict(x.x, x.y),
-    	-99: lambda: message.fromstring(struct.pack('>i', x)),
-    	}[t]()
+            self._write(x, message)
+            self._write(y, message)
+        
+        if t < 0 :    
+            {-1: lambda: message.fromstring(struct.pack('b', x)),
+             -4: lambda: message.fromstring(struct.pack('b', x)),
+             -5: lambda: message.fromstring(struct.pack('>h', x)),
+            -6: lambda: message.fromstring(struct.pack('>i', x)),
+            -7: lambda: message.fromstring(struct.pack('>l', x)),
+            -8: lambda: message.fromstring(struct.pack('>f', x)),
+            -9: lambda: message.fromstring(struct.pack('>d', x)),
+            -10: lambda: message.fromstring(struct.pack('c', x)),            
+            -11: lambda: message.fromstring(x),
+            -13: lambda: message.fromstring(struct.pack('>i', x.i)),
+            -14: lambda: message.fromstring(struct.pack('>i', (self.lg( time.mktime(x.timetuple()) )*1000. -k) / 8.64e7 )),
+            -15: lambda: message.fromstring(struct.pack('>d', (self.lg( time.mktime(x.timetuple())+(x.microsecond/1000000.) )*1000. -k) / 8.64e7 )),
+            -17: lambda: message.fromstring(struct.pack('>i', x.i)),
+            -18: lambda: message.fromstring(struct.pack('>i', x.i)),
+            -19: lambda: message.fromstring(struct.pack('>i', ( x.hour*3600 + x.minute*60 + x.second + x.microsecond/1000000. )*1000. )),
+            -98: lambda: writeDict(x.x, x.y),
+            -99: lambda: message.fromstring(struct.pack('>i', x)),
+        	}[t]()
+            return
+        
+        if t == 99:
+            self._write(x.x, message)
+            self._write(x.y, message)
+            return
+        
+        message.fromstring(struct.pack('b', 0))
+        
+        if t == 98:
+            message.fromstring(struct.pack('>i', 99))
+            self._write(x.x, message)
+            self._write(x.y, message)
+            return
+        
+        n = self.n(x)
+        message.fromstring(struct.pack('>i', n))
+        
+        writeType = {
+            0: self._write,
+            1: self._wb,
+             4: self._wb,
+             5: self._wh,
+             6: self._wi,
+             7: self._wj,
+             8: self._we,
+             9: self._wf,
+             10: self._wc,
+             11: self._ws,
+             13: self._wi,
+             14: self._wd,
+             15: self._wdt,
+             17: self._wi,
+             18: self._wi,
+             19: self._wt
+             }
+        for i in range(0, n):
+            writeType[t](x[i], message)
     	
-    def k(self, query):
+    def k(self, query, args=None):
         global SYNC
-        if isinstance(query, str): self._send(SYNC, array.array('c',query))
-        else: self._send(SYNC, query)
+        if isinstance(query, str) and args is None: 
+            self._send(SYNC, array.array('c',query))
+        else:
+            stuff = [array.array('c',query),]
+            for item in args:
+                stuff.append(item)
+            self._send(SYNC, stuff )
         return self._readFromServer()
         
     def _send(self, sync, query):
@@ -257,9 +349,7 @@ class q:
         else:
             message = array.array('b', [0,0,0,0]) # 1 for synchronous requests
         message.fromstring(struct.pack('>i', n)) # n should be len(query)+14
-        message.fromstring(struct.pack('i', 10)) # qtype of the data to follow
-        message.fromstring(struct.pack('>h', len(query)))
-        message.fromstring(query)
+        self._write(query, message)
         self.sock.send(message)
        
     def _readFromServer(self):
@@ -296,22 +386,24 @@ class q:
         return val
     
     def _rd(self, little_endian, bytearray):
-        """retrieve integer from bytearray at offset"""
+        """retrieve date from bytearray at offset"""
         val = struct.unpack('i' if little_endian else '>i', bytearray[self.offset:self.offset+4])[0]
         self.offset+=4
-        return datetime.date.fromordinal(730120+val)  #730120 is the ordinal for 2000-01-01
+        delta=datetime.timedelta(milliseconds=8.64e7*val)
+        return datetime.date.fromtimestamp(self.gl(946684800L)) + delta  #946684800L is conversion from UNIX epoch to KDB epoch
     
     def _rt(self, little_endian, bytearray):
-        """retrieve integer from bytearray at offset"""
+        """retrieve time from bytearray at offset"""
         val = struct.unpack('i' if little_endian else '>i', bytearray[self.offset:self.offset+4])[0]
         self.offset+=4
-        return datetime.time((val/(60*60*1000)), (val/(60*1000) % 60), (val/(1000) % 60), (val % 10000)-1 )  #730120 is the ordinal for 2000-01-01
+        return (datetime.datetime.fromordinal(1) + datetime.timedelta(milliseconds=val)).time()
      
     def _rdt(self, little_endian, bytearray):
-        """retrieve integer from bytearray at offset"""
+        """retrieve datetime from bytearray at offset.  kdb stores dates relative to 2000.01.01"""
         val = struct.unpack('d' if little_endian else '>d', bytearray[self.offset:self.offset+8])[0]
         self.offset+=8
-        return datetime.datetime.fromtimestamp(946710000.0+(val*60*60*24))  #946710000 is the timestamp for 1999-12-31 23:00:00
+        delta=datetime.timedelta(milliseconds=8.64e7*val)  #8.64e7 is milliseconds in a day
+        return datetime.datetime.fromtimestamp(self.gl(946684800L)) + delta  #946684800L is conversion from UNIX epoch to KDB epoch
         
     def _re(self, little_endian, bytearray):
         """retrieve float from bytearray at offset"""
