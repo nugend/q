@@ -1,6 +1,7 @@
 import unittest
 import q
 import datetime
+import array
 
 class TestDataTypes(unittest.TestCase):
     
@@ -24,6 +25,20 @@ class TestDataTypes(unittest.TestCase):
         self.assertEqual(self.conn.k('test').i, q.Month(1).i)
         self.conn.k('test:2008.09m')
         self.assertEqual(str(self.conn.k('test')), '2008-09')
+        
+    def testSecond(self):
+        self.conn.k('{[x]test::x}', (q.Second(61),))
+        self.assertEqual(self.conn.k('test').i, q.Second(61).i)
+        self.conn.k('test:00:01:01')
+        self.assertEqual(str(self.conn.k('test')), '00:01:01')
+        self.assertEqual(self.conn.k('test'), q.Second(61))
+    
+    def testMinute(self):
+        self.conn.k('{[x]test::x}', (q.Minute(61),))
+        self.assertEqual(self.conn.k('test').i, q.Minute(61).i)
+        self.conn.k('test:01:01')
+        self.assertEqual(str(self.conn.k('test')), '01:01')
+        self.assertEqual(self.conn.k('test'), q.Minute(61))
         
     def testDate(self):
         now = datetime.datetime.now().date()
@@ -63,6 +78,20 @@ class TestDataTypes(unittest.TestCase):
         self.conn.k('test:`$"'+string+'"')
         self.assertEqual(str(self.conn.k('test')), string)
         
+    def testChar(self):
+        string = ['t','e']
+        self.conn.k('{[x]test::x}', (string,))
+        self.assertEqual(self.conn.k('test'), string)
+        self.conn.k('test:"'+"".join(string)+'"')
+        self.assertEqual(self.conn.k('test'), string)
+        string = 't'
+        self.conn.k('{[x]test::x}', (string,))
+        self.assertEqual(self.conn.k('test'), string)
+        self.conn.k('test:"'+"".join(string)+'"')
+        self.assertEqual(self.conn.k('test'), string)
+        
+    def tearDown(self):
+        self.conn.close()
           
 if __name__ == '__main__':
     unittest.main()

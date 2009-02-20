@@ -154,8 +154,8 @@ class q:
         self.sock=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect()
   
-  	def close(self):
-  		self.sock.close()
+    def close(self):
+        self.sock.close()
   		
     def connect(self, attempts=1):
         if self.host=='' :
@@ -504,7 +504,5 @@ class q:
             item = readType[t]()
             val.append( item )
         return val
-        
-        return self._rs(little_endian, bytearray)
 
         
