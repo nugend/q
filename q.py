@@ -153,10 +153,10 @@ class q:
         self.user=user
         self.sock=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect()
-  
+
     def close(self):
         self.sock.close()
-  		
+        
     def connect(self, attempts=1):
         if self.host=='' :
             raise Exception('bad host')
@@ -208,27 +208,27 @@ class q:
         if isinstance(x, list): return 0
         if isinstance(x, array.array):
             return 10 if x.typecode == 'c' else \
-               10 if x.typecode == 'h' else \
-				6 if x.typecode == 'i' else \
-				7 if x.typecode == 'l' else \
-				8 if x.typecode == 'f' else \
-				8 if x.typecode == 'd' else \
-				0
-			
+                10 if x.typecode == 'h' else \
+                6 if x.typecode == 'i' else \
+                7 if x.typecode == 'l' else \
+                8 if x.typecode == 'f' else \
+                8 if x.typecode == 'd' else \
+                0
+                                    
         return -1 if isinstance(x, bool) else \
-        	-6 if isinstance(x, int) else \
-			-8 if isinstance(x, float) else \
-			-7 if isinstance(x, long) else \
-			-11 if isinstance(x, str) else \
-			-13 if isinstance(x, Month) else \
+            -6 if isinstance(x, int) else \
+            -8 if isinstance(x, float) else \
+            -7 if isinstance(x, long) else \
+            -11 if isinstance(x, str) else \
+            -13 if isinstance(x, Month) else \
             -15 if isinstance(x, datetime.datetime) else \
             -14 if isinstance(x, datetime.date) else \
-			-17 if isinstance(x, Minute) else \
-			-18 if isinstance(x, Second) else \
+            -17 if isinstance(x, Minute) else \
+            -18 if isinstance(x, Second) else \
             -19 if isinstance(x, datetime.time) else \
-			98 if isinstance(x, Dict) else \
-			99 if isinstance(x, Flip) else \
-			0
+            98 if isinstance(x, Dict) else \
+            99 if isinstance(x, Flip) else \
+            0
     
     def _wb(self, x, message):
         message.fromstring(struct.pack('b', x))
@@ -270,12 +270,12 @@ class q:
         
     def _wmms(self, x, message):
         message.fromstring(struct.pack('>i', x.i))
-    
+        
     def _write(self, x, message):
-    	"""determine the type of x and write it to the binary message for output"""
-    	t = self._qtype(x)
-    	message.fromstring(struct.pack('b', t))
-    	
+        """determine the type of x and write it to the binary message for output"""
+        t = self._qtype(x)
+        message.fromstring(struct.pack('b', t))
+        
         writeType = {
             -1: self._wb,
              -4: self._wb,
@@ -312,7 +312,7 @@ class q:
              19: self._wt
              }
         
-        if t < 0 :    
+        if t < 0 :
             writeType[t](x, message)
             return
         
@@ -334,7 +334,7 @@ class q:
         
         for i in range(0, n):
             writeType[t](x[i], message)
-    	
+            
     def k(self, query, args=None):
         global SYNC
         if isinstance(query, str) and args is None: 
