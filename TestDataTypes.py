@@ -2,6 +2,7 @@ import unittest
 import q
 import datetime
 import array
+import cPickle
 
 class TestDataTypes(unittest.TestCase):
     
@@ -89,6 +90,21 @@ class TestDataTypes(unittest.TestCase):
         self.assertEqual(self.conn.k('test'), string)
         self.conn.k('test:"'+"".join(string)+'"')
         self.assertEqual(self.conn.k('test'), string)
+        
+    def testBlob(self):
+        dict = {'hello': 'world'}
+        self.conn.k('test:`$"'+cPickle.dumps(dict)+'"')
+        self.assertEqual(cPickle.loads(self.conn.k('test')), dict)
+        
+    def testDict(self):
+        self.conn.k('test:(enlist `key)!(enlist `value)')
+        t = self.conn.k('test')
+        x = ['key',]
+        y = ['value',]
+        dict = q.Dict(x, y)
+        self.conn.k('{[x]test::x}', (dict,))
+        t = self.conn.k('test')
+        self.assertEqual(self.conn.k('test'), dict)
         
     def tearDown(self):
         self.conn.close()

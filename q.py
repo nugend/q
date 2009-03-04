@@ -78,8 +78,11 @@ class Dict:
     def __str__(self):
         result = ""
         for i in range(0, len(self.x)):
-            result += str(self.x[i]), str(self.y[i]) + "\n"
+            result += str(self.x[i]) + ":" + str(self.y[i]) + "\n"
         return result
+    def __eq__(self, obj):
+        if isinstance(obj, Dict) : return self.x == obj.x and self.y == obj.y
+        return False
 class Flip:
     """Flip is a different way to look at table data held in a Dict
     It assumes that the dictionary contains values which are equal length arrays"""
@@ -110,6 +113,9 @@ class Flip:
             string += str(row) + "\n"
         self.index = 0
         return string
+    def __eq__(self, obj):
+        if isinstance(obj, Flip) : return self.y == obj.y and self.x == obj.x
+        return False
     
 def td(x):
     """A Dict containing two Flips is how keyed tables are encoded, td joins the 2 Dict objects into a single Flip object"""
@@ -153,7 +159,7 @@ class q:
         self.user=user
         self.sock=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect()
-
+        
     def close(self):
         self.sock.close()
         
@@ -205,7 +211,10 @@ class q:
     def _qtype(self, x):
         """Encode the type of x as an integer that is interpreted by q"""
         #TODO figure out how to deal with array types
-        if isinstance(x, list): return 0
+        if isinstance(x, list):
+            return 0 if len(x) == 0 else \
+                11 if isinstance(x[0], str) else \
+                0
         if isinstance(x, array.array):
             return 10 if x.typecode == 'c' else \
                 10 if x.typecode == 'h' else \
@@ -226,8 +235,8 @@ class q:
             -17 if isinstance(x, Minute) else \
             -18 if isinstance(x, Second) else \
             -19 if isinstance(x, datetime.time) else \
-            98 if isinstance(x, Dict) else \
-            99 if isinstance(x, Flip) else \
+            98 if isinstance(x, Flip) else \
+            99 if isinstance(x, Dict) else \
             0
     
     def _wb(self, x, message):
@@ -246,7 +255,7 @@ class q:
         message.fromstring(struct.pack('>d', (self.lg( time.mktime(x.timetuple())+(x.microsecond/1000000.) )*1000. -k) / 8.64e7 ))
         
     def _wt(self, x, message):
-        message.fromstring(struct.pack('>i', ( x.hour*3600 + x.minute*60 + x.second + x.microsecond/1000000. )*1000. ))
+        message.fromstring(struct.pack('>i', ( x.hour*3600 + x.minute*60 + x.second + (x.microsecond+100)/1000000. )*1000. ))
     
     def _we(self, x, message):
         message.fromstring(struct.pack('>f', x))
@@ -352,7 +361,7 @@ class q:
             message = array.array('b', [0,1,0,0]) # 1 for synchronous requests
         else:
             message = array.array('b', [0,0,0,0]) # 1 for synchronous requests
-        message.fromstring(struct.pack('>i', n)) # n should be len(query)+14
+        message.fromstring(struct.pack('>i', n)) # n is the total lengh of the message ( in bytes)
         self._write(query, message)
         self.sock.send(message)
        
@@ -504,5 +513,3 @@ class q:
             item = readType[t]()
             val.append( item )
         return val
-
-        
