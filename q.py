@@ -479,7 +479,7 @@ class q:
              10: lambda: self._rc(little_endian, bytearray),
              11: lambda: self._rs(little_endian, bytearray),
              13: lambda: Month(self._ri(little_endian, bytearray)),
-             14: lambda: self._ri(little_endian, bytearray),
+             14: lambda: self._rd(little_endian, bytearray),
              15: lambda: self._rf(little_endian, bytearray),
              17: lambda: Minute(self._ri(little_endian, bytearray)),
              18: lambda: Second(self._ri(little_endian, bytearray)),
