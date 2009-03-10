@@ -480,10 +480,10 @@ class q:
              11: lambda: self._rs(little_endian, bytearray),
              13: lambda: Month(self._ri(little_endian, bytearray)),
              14: lambda: self._rd(little_endian, bytearray),
-             15: lambda: self._rf(little_endian, bytearray),
+             15: lambda: self._rdt(little_endian, bytearray),
              17: lambda: Minute(self._ri(little_endian, bytearray)),
              18: lambda: Second(self._ri(little_endian, bytearray)),
-             19: lambda: self._ri(little_endian, bytearray)
+             19: lambda: self._rt(little_endian, bytearray)
             }
         if t < 0 :
             #In this case the value is a scalar
