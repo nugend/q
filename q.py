@@ -373,13 +373,25 @@ class q:
         self.offset = 4
         dataSize = self._ri(little_endian, header)
         
-        inputBytes = self.sock.recv(dataSize - 8)
+        inputBytes = self.recv_size(self.sock, dataSize - 8)
+        #ensure that it reads all the data
         if struct.unpack_from('b', inputBytes, 0)[0] == -128 :
             self.offset = 1
             raise Exception(self._rs(little_endian, inputBytes))
         self.offset =0
         return self._r(little_endian, inputBytes)
     
+    def recv_size(self, the_socket, size):
+        """read size bytes from the socket."""
+        #data length is packed into 8 bytes
+        total_len=0;total_data=[]
+        size_data=sock_data='';recv_size=8192
+        while total_len<size:
+            sock_data=the_socket.recv(recv_size)
+            total_data.append(sock_data)
+            total_len=sum([len(i) for i in total_data ])
+        return ''.join(total_data)
+
     def _rb(self, little_endian, bytearray):
         """retrieve byte from bytearray at offset"""
         val = struct.unpack('b', bytearray[self.offset:self.offset+1])[0]
@@ -433,6 +445,7 @@ class q:
     def _rf(self, little_endian, bytearray):
         """retrieve double from bytearray at offset"""
         val = struct.unpack('d' if little_endian else '>d', bytearray[self.offset:self.offset+8])[0]
+        print val
         self.offset+=8
         return val
     
