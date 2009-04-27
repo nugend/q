@@ -110,7 +110,7 @@ class Flip:
     def __str__(self):
         string = ""
         for row in self:
-            string += str(row) + "\n"
+            string += ','.join((str(item) for item in row)) + "\n"
         self.index = 0
         return string
     def __eq__(self, obj):
