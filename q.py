@@ -61,28 +61,22 @@ class Second:
     def __eq__(self, obj):
         if isinstance(obj, Second) : return obj.i == self.i
         return False
-class Dict:
+class Dict(dict):
     """Dict is a generalized dict.  It just contains the keys and values as two objects and provides a way to 
     interact with it."""
     def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.index = 0
+        super(Dict,self).__init__(zip(x,y))
+    
+    def __getattr__(self,name):
+        if "x" == name:
+            return self.keys()
+        elif "y" == name:
+            return self.values()
+        else:
+            raise AttributeError
+
     def __iter__(self):
-        return self
-    def next(self):
-        if self.index > len(self.x)-1:
-            raise StopIteration
-        self.index += 1
-        return self.x[self.index-1], self.y[self.index-1]
-    def __str__(self):
-        result = ""
-        for i in range(0, len(self.x)):
-            result += str(self.x[i]) + ":" + str(self.y[i]) + "\n"
-        return result
-    def __eq__(self, obj):
-        if isinstance(obj, Dict) : return self.x == obj.x and self.y == obj.y
-        return False
+        return self.iteritems()
 class Flip:
     """Flip is a different way to look at table data held in a Dict
     It assumes that the dictionary contains values which are equal length arrays"""
@@ -188,8 +182,12 @@ class q:
             return str.find('\000')
         
     def n(self, x):
-        #return self.n(x.x) if isinstance(x, dict) else self.n(x.y[0]) if isinstance(x, flip) else len(x);
-        return self.n(x.x) if isinstance(x, Dict) else len(x) if isinstance(x, array.array) or isinstance(x, list) else 1;
+        if isinstance(x, Dict):
+            return self.n(x.x)
+        elif isinstance(x, array.array) or isinstance(x, list):
+            return len(x)
+        else:
+            return 1
     
     def _nx(self, x):
         qtype = self._qtype(x)
@@ -198,12 +196,18 @@ class q:
         if qtype == 98:
             return 3 + self._nx(x.x) + self._nx(x.y)
         if qtype < 0:
-            return 2+len(x) if qtype == -11 else 1 + nt[-qtype]
+            if qtype == -11:
+                return 2+len(x)
+            else:
+                return 1 + nt[-qtype]
         j = 6
         n = self.n(x)
         if qtype == 0 or qtype == 11:
             for i in range(0, n):
-                j += self._nx(x[i]) if qtype == 0 else 1 + len(x[i]);
+                if qtype == 0:
+                    j += self._nx(x[i])
+                else:
+                    1 + len(x[i])
         else :
             j += n * nt[qtype];
         return j;
@@ -211,33 +215,52 @@ class q:
     def _qtype(self, x):
         """Encode the type of x as an integer that is interpreted by q"""
         #TODO figure out how to deal with array types
-        if isinstance(x, list):
-            return 0 if len(x) == 0 else \
-                11 if isinstance(x[0], str) else \
-                0
+        if isinstance(x, list):return 0
+
         if isinstance(x, array.array):
-            return 10 if x.typecode == 'c' else \
-                10 if x.typecode == 'h' else \
-                6 if x.typecode == 'i' else \
-                7 if x.typecode == 'l' else \
-                8 if x.typecode == 'f' else \
-                8 if x.typecode == 'd' else \
-                0
+            if x.typecode == 'c':
+                return 10
+            elif x.typecode == 'h':
+                return 10
+            elif x.typecode == 'i':
+                return 6
+            elif x.typecode == 'l':
+                return 7
+            elif x.typecode == 'f':
+                return 8
+            elif x.typecode == 'd':
+                return 8
+            else:
+                return 0
                                     
-        return -1 if isinstance(x, bool) else \
-            -6 if isinstance(x, int) else \
-            -8 if isinstance(x, float) else \
-            -7 if isinstance(x, long) else \
-            -11 if isinstance(x, str) else \
-            -13 if isinstance(x, Month) else \
-            -15 if isinstance(x, datetime.datetime) else \
-            -14 if isinstance(x, datetime.date) else \
-            -17 if isinstance(x, Minute) else \
-            -18 if isinstance(x, Second) else \
-            -19 if isinstance(x, datetime.time) else \
-            98 if isinstance(x, Flip) else \
-            99 if isinstance(x, Dict) else \
-            0
+        if isinstance(x,bool):
+            return -1
+        elif isinstance(x,int):
+            return -6
+        elif isinstance(x,float):
+            return -8
+        elif isinstance(x,long):
+            return -7
+        elif isinstance(x,str):
+            return -11
+        elif isinstance(x,Month):
+            return -13
+        elif isinstance(x,datetime.datetime):
+            return -15
+        elif isinstance(x,datetime.date):
+            return -14
+        elif isinstance(x,Minute):
+            return -17
+        elif isinstance(x,Second):
+            return -18
+        elif isinstance(x,datetime.time):
+            return -19
+        elif isinstance(x,Flip):
+            return 98
+        elif isinstance(x,Dict):
+            return 99
+        else:
+            return 0
     
     def _wb(self, x, message):
         message.fromstring(struct.pack('b', x))
@@ -301,8 +324,6 @@ class q:
             -17: self._wmms,
             -18: self._wmms,
             -19: self._wt,
-            -98: self._wdict,
-            -99: self._wi,
             0: self._write,
             1: self._wb,
              4: self._wb,
@@ -375,7 +396,7 @@ class q:
         
         inputBytes = self.recv_size(self.sock, dataSize - 8)
         #ensure that it reads all the data
-        if struct.unpack_from('b', inputBytes, 0)[0] == -128 :
+        if struct.unpack('b', inputBytes[0:struct.calcsize('b')])[0] == -128 :
             self.offset = 1
             raise Exception(self._rs(little_endian, inputBytes))
         self.offset =0
@@ -385,13 +406,20 @@ class q:
         """read size bytes from the socket."""
         #data length is packed into 8 bytes
         total_len=0;total_data=[]
-        size_data=sock_data='';recv_size=8192
+        size_data=sock_data='';recv_size=min(size,8192)
         while total_len<size:
             sock_data=the_socket.recv(recv_size)
             total_data.append(sock_data)
             total_len=sum([len(i) for i in total_data ])
         return ''.join(total_data)
 
+    def _endian_decide(self,little_endian,fmt):
+        """pick between two types for conversion based on endianness"""
+        if little_endian:
+            return fmt
+        else:
+            return '>'+fmt
+    
     def _rb(self, little_endian, bytearray):
         """retrieve byte from bytearray at offset"""
         val = struct.unpack('b', bytearray[self.offset:self.offset+1])[0]
@@ -406,52 +434,51 @@ class q:
     
     def _ri(self, little_endian, bytearray):
         """retrieve integer from bytearray at offset"""
-        val = struct.unpack('i' if little_endian else '>i', bytearray[self.offset:self.offset+4])[0]
+        val = struct.unpack(self._endian_decide(little_endian,'i'), bytearray[self.offset:self.offset+4])[0]
         self.offset+=4
         return val
     
     def _rd(self, little_endian, bytearray):
         """retrieve date from bytearray at offset"""
-        val = struct.unpack('i' if little_endian else '>i', bytearray[self.offset:self.offset+4])[0]
+        val = struct.unpack(self._endian_decide(little_endian,'i'), bytearray[self.offset:self.offset+4])[0]
         self.offset+=4
         delta=datetime.timedelta(milliseconds=8.64e7*val)
         return datetime.date.fromtimestamp(self.gl(946684800L)) + delta  #946684800L is conversion from UNIX epoch to KDB epoch
     
     def _rt(self, little_endian, bytearray):
         """retrieve time from bytearray at offset"""
-        val = struct.unpack('i' if little_endian else '>i', bytearray[self.offset:self.offset+4])[0]
+        val = struct.unpack(self._endian_decide(little_endian,'i'), bytearray[self.offset:self.offset+4])[0]
         self.offset+=4
         return (datetime.datetime.fromordinal(1) + datetime.timedelta(milliseconds=val)).time()
      
     def _rdt(self, little_endian, bytearray):
         """retrieve datetime from bytearray at offset.  kdb stores dates relative to 2000.01.01"""
-        val = struct.unpack('d' if little_endian else '>d', bytearray[self.offset:self.offset+8])[0]
+        val = struct.unpack(self._endian_decide(little_endian,'d'), bytearray[self.offset:self.offset+8])[0]
         self.offset+=8
         delta=datetime.timedelta(milliseconds=8.64e7*val)  #8.64e7 is milliseconds in a day
         return datetime.datetime.fromtimestamp(self.gl(946684800L)) + delta  #946684800L is conversion from UNIX epoch to KDB epoch
         
     def _re(self, little_endian, bytearray):
         """retrieve float from bytearray at offset"""
-        val = struct.unpack('f' if little_endian else '>f', bytearray[self.offset:self.offset+4])[0]
+        val = struct.unpack(self._endian_decide(little_endian,'f'), bytearray[self.offset:self.offset+4])[0]
         self.offset+=4
         return val
     
     def _rj(self, little_endian, bytearray):
         """retrieve long from bytearray at offset"""
-        val = struct.unpack('l' if little_endian else '>l', bytearray[self.offset:self.offset+8])[0]
+        val = struct.unpack(self._endian_decide(little_endian,'l'), bytearray[self.offset:self.offset+8])[0]
         self.offset+=8
         return val
     
     def _rf(self, little_endian, bytearray):
         """retrieve double from bytearray at offset"""
-        val = struct.unpack('d' if little_endian else '>d', bytearray[self.offset:self.offset+8])[0]
-        print val
+        val = struct.unpack(self._endian_decide(little_endian,'d'), bytearray[self.offset:self.offset+8])[0]
         self.offset+=8
         return val
     
     def _rh(self, little_endian, bytearray):
         """retrieve integer from bytearray at offset"""
-        val = struct.unpack('h' if little_endian else '>h', bytearray[self.offset:self.offset+2])[0]
+        val = struct.unpack(self._endian_decide(little_endian,'h'), bytearray[self.offset:self.offset+2])[0]
         self.offset+=2
         return val
     
@@ -506,7 +533,10 @@ class q:
                 self._rs(little_endian, bytearray)
                 return self._r(little_endian, bytearray)
             if t < 104 :
-                return None if self._rb(little_endian, bytearray) == 0 and t == 101 else "func";
+                if self._rb(little_endian, bytearray) == 0 and t == 101:
+                    return None 
+                else:
+                    return "func"
             self.offset = len(bytearray)
             return "func"
         
