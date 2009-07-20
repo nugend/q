@@ -354,7 +354,7 @@ class q:
         message.fromstring(struct.pack('b', 0))
         
         if t == 98:
-            message.fromstring(struct.pack('>i', 99))
+            message.fromstring(struct.pack('b', 99))
             self._write(x.x, message)
             self._write(x.y, message)
             return
