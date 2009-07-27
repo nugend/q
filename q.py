@@ -130,7 +130,7 @@ def td(x):
 # 86400000 is number of milliseconds in a day
 # 10957 is days offset between UNIX Epoch and kdb Epoch
 k = 86400000L * 10957
-STDOFFSET = -time.timezone  #there's a bug here with DST handling.
+STDOFFSET = -time.timezone
 
       
 class q:
@@ -273,7 +273,7 @@ class q:
         message.fromstring(struct.pack('>i', x))
     
     def _wd(self, x, message):
-        message.fromstring(struct.pack('>i', (time.mktime(x.timetuple()) *1000. -k) / 8.64e7 ))
+        message.fromstring(struct.pack('>i', x.toordinal() - datetime.date(2000, 1, 1).toordinal()))
         
     def _wdt(self, x, message):
         message.fromstring(struct.pack('>d', (self.lg( time.mktime(x.timetuple())+(x.microsecond/1000000.) )*1000. -k) / 8.64e7 ))
