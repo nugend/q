@@ -49,6 +49,7 @@ class TestDataTypes(unittest.TestCase):
         self.assertEqual(str(self.conn.k('test')), '2008-09-09')
         self.conn.k('test:1908.09.09')
         self.assertEqual(str(self.conn.k('test')), '1908-09-09')
+        self.assertEqual(self.conn.k('{x}',[datetime.date(2009,7,12)]), datetime.date(2009,7,12))
 
     def testDateTime(self):
         dt = datetime.datetime(2000,1,1,12,00)
@@ -62,6 +63,7 @@ class TestDataTypes(unittest.TestCase):
         self.assertEqual(str(self.conn.k('test')), '1999-09-09 01:01:01.001000')
         self.conn.k('test:1908.09.13T01:01:01.005')
         self.assertEqual(str(self.conn.k('test')), '1908-09-13 01:01:01.005000')
+
 
     def testTime(self):
         t = datetime.datetime(2000,1,1,12,00).time()
