@@ -5,7 +5,7 @@ class Parser:
   def __init__(self,types):
     self.types=types
     # Defines order of type code lookup (important for types like q_str that are sub_types of a type already used for translation)
-    self.type_order = ['char','symbol','month','date','minute','second','time','datetime','int','long','float','bool','real','short','byte','dict','flip'] 
+    self.type_order = ['char','symbol','month','date','minute','second','time','datetime','int','long','float','bool','real','short','byte','dict','flip','table']
   
   def update_types(self):
     self.read_byte = types['byte'].read_data

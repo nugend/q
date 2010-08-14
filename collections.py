@@ -1,12 +1,13 @@
-import itertools
+from itertools import izip
 from parse import parser
 from types import TranslateType, q_str
+from UserDict import DictMixin
 
 #NOTE: Dealing with the impedance mismatch between Q symbols, chars and char lists and Python strings is a major pain-point
 CHAR_CODE=10
 
 class q_list(list):
-  def __init__(self,l,code=None):
+  def __init__(self,l=[],code=None):
     super(q_list,self).__init__(l)
     if 0 == len(self):
       self.type=parser.code_dict[0]
@@ -24,7 +25,7 @@ class q_list(list):
       return q_list(val)
     else:
       return val
-  
+
   @staticmethod
   def _determine_iter_type(l,reeval=False):
     if (not reeval) and 'type' in dir(l):
@@ -34,13 +35,13 @@ class q_list(list):
       if tc[0] != code:
         return parser.types['list']
     return parser.code_dict[tc[0]]
-  
+
   def _determine_type(self):
       self.type=self._determine_iter_type(self,True)
 
   def __getslice__(self,i,j):
     return q_list(super(q_list,self).__getslice__(i,j))
-  
+
   @staticmethod
   def _add_list_helper(type,y):
     if type.list_code > 0 and q_list._determine_iter_type(y).code != type.code:
@@ -68,7 +69,7 @@ class q_list(list):
     return q_list(super(q_list,self).__rmul__(n),code=self.type.code)
 
   def __rmul__(self,n): return self.__mul__(n)
-  
+
   def __add__(self,y):
     if self.type.code == self._determine_iter_type(y):
       return q_list(super(q_list,self).__add__(y),code=self.type.code)
@@ -122,26 +123,114 @@ class q_list(list):
     else:
       return (val,offset)
 
-class flip(dict):
+class q_dict(DictMixin):
+  def __init__(self,arg=None,**kwargs):
+    self._keys=q_list()
+    self._values=q_list()
+    if getattr(arg,"keys",False) and getattr(arg,"values",False):
+      self._keys=arg.keys()
+      self._values=arg.values()
+    elif getattr(arg,"iteritems",False):
+      for (k,v) in arg.iteritems():
+        self._keys.append(k)
+        self._values.append(k)
+    elif getattr(arg,"items",False):
+      for (k,v) in arg.items():
+        self._keys.append(k)
+        self._values.append(k)
+    elif arg:
+      for (k,v) in arg:
+        self._keys.append(k)
+        self._values.append(k)
+    else:
+      self._keys=kwargs.keys()
+      self._values=kwargs.values()
 
-  @staticmethod
-  def _read_flip(endianness,offset,bytes):
-    (dictionary,offset) = parser.read(endianness,offset+1,bytes)
-    return (flip(dictionary),offset)
+  def keys(self):
+    return self._keys
 
-  @staticmethod
-  def _write_flip(val,message):
-    message.fromstring(parser.write_byte(0)+parser.write_byte(99))
-    return _write_dict(message,val)
+  def values(self):
+    return self._values
+
+  def __getitem__(self,i):
+    try:
+      return self._values[self._keys.index(i)]
+    except ValueError:
+      raise KeyError(i)
+
+  def __setitem__(self,i,y):
+    try:
+      self._values[self._keys.index(i)]=y
+    except ValueError:
+      self._keys.append(i)
+      self._values.append(y)
+
+  def __delitem__(self,i):
+    try:
+      p = self._keys.index(i)
+      del self.keys[p]
+      del self.keys[p]
+    except ValueError:
+      raise KeyError(i)
+
+  def __contains__(self,i):
+    return i in self._keys
+
+  def __iter__(self):
+    return iter(self._keys)
+
+  def iteritems(self):
+    return izip(iter(self._keys),iter(self._values))
+
+  def __repr__(self):
+    return "{" + ", ".join([repr(x)+": " + repr(y) for x in self._keys for y in self._values]) + "}"
+
+  def __cmp__(self,other):
+    if other is None:
+      return 1
+    else:
+      #TODO
+      raise Exception
  
-def _read_dict(endianness,offset,bytes):
-   (keys,offset) = parser.read(endianness,offset,bytes)
-   (values,offset) = parser.read(endianness,offset,bytes)
-   return (dict(itertools.izip(keys, values)),offset)
+  @staticmethod
+  def _read(endianness,offset,bytes):
+    (keys,offset) = parser.read(endianness,offset,bytes)
+    (values,offset) = parser.read(endianness,offset,bytes)
+    dictionary=q_dict()
+    dictionary._keys=keys
+    dictionary._values=values
+    if isinstance(keys,table) and isinstance(values,table):
+      return (table(dictionary),offset)
+    else:
+      return (dictionary,offset)
 
-def _write_dict(val,message):
-  return parser.write(q_list(val.iterkeys()),parser.write(q_list(val.itervalues()),message))
+  @staticmethod
+  def _write(val,message):
+    return parser.write(val.keys(),parser.write(val.values(),message))
 
-parser.types['dict'] = TranslateType(dict,99,overwrite_write=_write_dict,overwrite_read=_read_dict)
-parser.types['flip'] = TranslateType(flip,98,overwrite_write=flip._write_flip,overwrite_read=flip._read_flip)
+class flip(q_dict):
+  def __init__(self,val):
+    self._storage=val
+
+  @staticmethod
+  def _read(endianness,offset,bytes):
+    (dictionary,offset) = parser.read(endianness,offset+1,bytes)
+    return (table(flip(dictionary)),offset)
+
+  @staticmethod
+  def _write(val,message):
+    message.fromstring(parser.write_byte(0)+parser.write_byte(99))
+    return q_dict._write(message,val._storage)
+
+class table:
+  def __init__(self,val):
+    pass
+
+  @staticmethod
+  def _write(val,message):
+    pass
+
+parser.types['dict'] = TranslateType(dict,99,overwrite_write=q_dict._write,overwrite_read=q_dict._read)
+parser.types['flip'] = TranslateType(flip,98,overwrite_write=flip._write,overwrite_read=flip._read)
 parser.types['list'] = TranslateType(q_list,0,overwrite_write=q_list._write,overwrite_read=q_list._read)
+parser.types['table'] = TranslateType(table,overwrite_write=table._write)
