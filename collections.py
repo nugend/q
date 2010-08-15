@@ -128,23 +128,23 @@ class q_dict(DictMixin):
     self._keys=q_list()
     self._values=q_list()
     if getattr(arg,"keys",False) and getattr(arg,"values",False):
-      self._keys=arg.keys()
-      self._values=arg.values()
+      self._keys.extend(arg.keys())
+      self._values.extend(arg.values())
     elif getattr(arg,"iteritems",False):
       for (k,v) in arg.iteritems():
         self._keys.append(k)
-        self._values.append(k)
+        self._values.append(v)
     elif getattr(arg,"items",False):
       for (k,v) in arg.items():
         self._keys.append(k)
-        self._values.append(k)
+        self._values.append(v)
     elif arg:
       for (k,v) in arg:
         self._keys.append(k)
-        self._values.append(k)
+        self._values.append(v)
     else:
-      self._keys=kwargs.keys()
-      self._values=kwargs.values()
+      self._keys.extend(kwargs.keys())
+      self._values.extend(kwargs.values())
 
   def keys(self):
     return self._keys
@@ -185,12 +185,18 @@ class q_dict(DictMixin):
   def __repr__(self):
     return "{" + ", ".join([repr(x)+": " + repr(y) for x in self._keys for y in self._values]) + "}"
 
+  @staticmethod
+  def _smallest_diff_key(a,b):
+    return min([k for k in a if a.get(k) != b.get(k)])
+
   def __cmp__(self,other):
-    if other is None:
-      return 1
-    else:
-      #TODO
-      raise Exception
+    if len(self) != len(other):
+      return cmp(len(self),len(other))
+    self_diff = _smallest_diff_key(self,other)
+    other_diff = _smallest_diff_key(other,self)
+    if self_diff != other_diff:
+      return cmp(self_diff,other_diff)
+    return cmp(self[self_diff],other[other_diff])
  
   @staticmethod
   def _read(endianness,offset,bytes):
