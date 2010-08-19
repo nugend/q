@@ -18,6 +18,8 @@ class q_list(list):
         self.type=parser.code_dict[CHAR_CODE]
       else:
         self.type=self._determine_iter_type(l)
+      if self.type.code == 0:
+        self = _recurse_collections(self)
 
   @staticmethod
   def convert_sequence(val):
@@ -50,11 +52,11 @@ class q_list(list):
       return type
 
   def __setitem__(self,i,y):
-    super(q_list,self).__setitem__(i,y)
+    super(q_list,self).__setitem__(i,_recurse_collections(y))
     self.type = self._add_list_helper(self.type,[y])
 
   def __setslice__(self,i,j,y):
-    super(q_list,self).__setslice__(i,j,y)
+    super(q_list,self).__setslice__(i,j,_recurse_collections(y))
     self.type = self._add_list_helper(self.type,y)
 
   def __delitem__(self,y):
@@ -72,21 +74,21 @@ class q_list(list):
 
   def __add__(self,y):
     if self.type.code == self._determine_iter_type(y):
-      return q_list(super(q_list,self).__add__(y),code=self.type.code)
+      return q_list(super(q_list,self).__add__(_recurse_collections(y)),code=self.type.code)
     else:
-      return q_list(super(q_list,self).__add__(y))
+      return q_list(super(q_list,self).__add__(_recurse_collections(y)))
 
   def __radd__(self,y): return self.__add__(y)
   def __iadd__(self,y): return self.__add__(y)
 
   def append(self,x):
-    self[len(self):len(self)] = [x]
+    self[len(self):len(self)] = [_recurse_collections(x)]
 
   def extend(self,x):
-    self[len(self):len(self)] = x
+    self[len(self):len(self)] = _recurse_collections(x)
 
   def insert(self,i,x):
-    self[i:i] = [x]
+    self[i:i] = [_recurse_collections(x)]
 
   def pop(self,i=None):
     if i is None:
@@ -147,10 +149,10 @@ class q_dict(DictMixin):
       self._values.extend(kwargs.values())
 
   def keys(self):
-    return self._keys
+    return list(self._keys)
 
   def values(self):
-    return self._values
+    return list(self._values)
 
   def __getitem__(self,i):
     try:
@@ -183,7 +185,7 @@ class q_dict(DictMixin):
     return izip(iter(self._keys),iter(self._values))
 
   def __repr__(self):
-    return "{" + ", ".join([repr(x)+": " + repr(y) for x in self._keys for y in self._values]) + "}"
+    return "{" + ", ".join([repr(self._keys[x])+": " + repr(self._values[x]) for x in xrange(0,len(self._keys))]) + "}"
 
   @staticmethod
   def _smallest_diff_key(a,b):
@@ -192,8 +194,8 @@ class q_dict(DictMixin):
   def __cmp__(self,other):
     if len(self) != len(other):
       return cmp(len(self),len(other))
-    self_diff = _smallest_diff_key(self,other)
-    other_diff = _smallest_diff_key(other,self)
+    self_diff = self._smallest_diff_key(self,other)
+    other_diff = self._smallest_diff_key(other,self)
     if self_diff != other_diff:
       return cmp(self_diff,other_diff)
     return cmp(self[self_diff],other[other_diff])
@@ -215,8 +217,6 @@ class q_dict(DictMixin):
     return parser.write(val.keys(),parser.write(val.values(),message))
 
 class flip(q_dict):
-  def __init__(self,val):
-    self._storage=val
 
   @staticmethod
   def _read(endianness,offset,bytes):
@@ -226,15 +226,172 @@ class flip(q_dict):
   @staticmethod
   def _write(val,message):
     message.fromstring(parser.write_byte(0)+parser.write_byte(99))
-    return q_dict._write(message,val._storage)
+    return q_dict._write(message,val)
 
 class table:
-  def __init__(self,val):
-    pass
+  def __init__(self,val,keys=[]):
+    if isinstance(val,flip):
+      self._data=val
+      self._type=flip
+    elif (isinstance(val,q_dict) and isinstance(val._keys,flip) and isinstance(val._values,flip)):
+      self._data=val
+      self._type=q_dict
+    elif 0 < len(keys):
+      self._data = q_dict()
+      self._data._keys = table(izip(keys,[val[x] for x in keys]))
+      non_keys = list(set(val.keys()).difference(keys))
+      self._data._values = table(izip(non_keys,[val[x] for x in non_keys]))
+      self._type=q_dict
+    else:
+      self._data=flip(val)
+      self._type=flip
+
+  def __eq__(self,other):
+    if sorted(self.cols()) != sorted(other.cols()):
+      return False
+    if len(self) != len(other):
+      return False
+    for col in self.cols:
+      if self[col] != other[col]:
+        return False
+    return True
+
+  def __ne__(self,other):
+    return not self == other
+
+  def __len__(self):
+    return len(self[self.cols()[0]])
+
+  def cols(self):
+    if self._type==flip:
+      return self._data.keys()
+    else:
+      return self._data._keys.cols() + self._data._values.cols()
+
+  def keys(self):
+    if self._type==flip:
+      raise ValueError
+    else:
+      return self._data._keys
+
+  @staticmethod
+  def _validate_row(val,row):
+    kfunc = getattr(row,"cols",getattr(row,"keys",False))
+    if kfunc:
+      return sorted(val.cols()) == sorted(kfunc())
+    if len(val.cols()) > 1:
+      if len(val.cols()) != len(row):
+        return False
+    else:
+      if getattr(row,"__len__",False):
+        return False
+    return True
+
+  def __getitem__(self,key):
+    if self._type==flip:
+      if isinstance(key,int):
+        return q_dict(izip(self.cols(),[self._data[c][key] for c in self.cols()]))
+      elif isinstance(key,slice):
+        return table(flip(q_dict(izip(self.cols(),[self._data[c][key] for c in self.cols()]))))
+      else:
+        return self._data[key]
+    else:
+      if not self._validate_row(self.keys(),key):
+        raise KeyError
+      return self._data._values[self._data._keys.index(key)]
+
+  def __setitem__(self,key,value):
+    if self._type==flip:
+      if isinstance(key,int) or isinstance(key,slice):
+        if not self._validate_row(self,value):
+          raise ValueError
+        kfunc = getattr(value,"cols",getattr(value,"keys",False))
+        if kfunc:
+          for vk in kfunc():
+            self._data[vk][key] = value[vk]
+        else:
+          for i, vk in enumerate(self.cols()):
+            self._data[vk][key] = value[i]
+      else:
+        if len(value) != len(self._data[key]):
+          raise ValueError
+        self._data[key] = value
+    else:
+      if not self._validate_row(self.keys(),key):
+        raise KeyError
+      self._data._values[self._data._keys.index(key)] = value
+
+  def __delitem__(self,key):
+    if self._type==flip:
+      if isinstance(key,int) or isinstance(key,slice):
+        for c in self.cols():
+          del self._data[c][key]
+      else:
+        del self._data[key]
+    else:
+      if not self._validate_row(self.keys(),key):
+        raise KeyError
+      del self._data._values[self._data._keys.index(key)]
+      del self._data._keys[self._data._keys.index(key)]
+
+  def index(self,val,start=0,stop=None,raise_miss=True):
+    if getattr(val,"keys",False):
+      cols = val.keys()
+    elif not getattr(val,"__len__",False):
+      cols = [self.cols()[0]]
+      val = dict([(cols[0],val)])
+    else:
+      cols = self.cols()[0:len(val)]
+      val = dict(izip(cols,val))
+    for i in xrange(start,stop or len(self)):
+      row = self[i]
+      match = True
+      for col in cols:
+        if row[col] != val[col]:
+          match = False
+      if match:
+        return i
+    if raise_miss:
+      raise ValueError
+    else:
+      return None
+
+  def __iter__(self):
+    if self._type == flip:
+      for i in xrange(0,len(self)):
+        yield self[i]
+    else:
+      for i in xrange(0,len(self._data._values)):
+        yield self._data._values[i]
+
+  def __contains__(self,item):
+    if self._type == flip:
+      return None != self.index(item,raise_miss=False)
+    else:
+      if not self._validate_row(self.keys(),item):
+        raise KeyError
+      return None != self._data._keys.index(item,raise_miss=False)
 
   @staticmethod
   def _write(val,message):
-    pass
+    if flip == val._type:
+      flip._write(val,message)
+    else:
+      q_dict._write(val,message)
+
+def _recurse_collections(c):
+  unknown_collection = lambda x:'__iter__' in dir(x) and not isinstance(x,q_list) or isinstance(x,q_dict) or isinstance(x,table)
+  if not unknown_collection(c):
+    return c
+  if isinstance(c,dict):
+    return q_dict(c)
+  elif isinstance(c,list):
+    for (i,e) in enumerate(c):
+      if unknown_collection(e):
+        c[i] = _recurse_collections(e)
+    return q_list(c)
+  else:
+    raise ValueError("Unknown collection type: " + str(type(c)))
 
 parser.types['dict'] = TranslateType(dict,99,overwrite_write=q_dict._write,overwrite_read=q_dict._read)
 parser.types['flip'] = TranslateType(flip,98,overwrite_write=flip._write,overwrite_read=flip._read)
