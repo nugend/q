@@ -33,7 +33,7 @@ from parse import parser as _parser
 
 _parser.update_types()
 
-class q:
+class conn:
     
   SYNC=True
   ASYNC=False
