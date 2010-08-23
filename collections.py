@@ -23,7 +23,7 @@ class q_list(list):
 
   @staticmethod
   def convert_sequence(val):
-    if '__iter__' in dir(val) or '__getitem__' in dir(val) or (isinstance(val,q_str) and not val.is_char):
+    if (not (isinstance(val,q_list) or isinstance(val,q_dict) or isinstance(val,table))) and ('__iter__' in dir(val) or '__getitem__' in dir(val) or (isinstance(val,q_str) and not val.is_char)):
       return q_list(val)
     else:
       return val
@@ -125,7 +125,7 @@ class q_list(list):
     else:
       return (val,offset)
 
-class q_dict(DictMixin):
+class q_dict(object,DictMixin):
   def __init__(self,arg=None,**kwargs):
     self._keys=q_list()
     self._values=q_list()
@@ -214,7 +214,9 @@ class q_dict(DictMixin):
 
   @staticmethod
   def _write(val,message):
-    return parser.write(val.keys(),parser.write(val.values(),message))
+    if isinstance(val,table):
+      return parser.write(val._data._values,parser.write(val._data._keys,message))
+    return parser.write(val.values(),parser.write(val.keys(),message))
 
 class flip(q_dict):
 
@@ -225,10 +227,12 @@ class flip(q_dict):
 
   @staticmethod
   def _write(val,message):
+    if isinstance(val,table):
+      val=val._data
     message.fromstring(parser.write_byte(0)+parser.write_byte(99))
-    return q_dict._write(message,val)
+    return q_dict._write(val,message)
 
-class table:
+class table(object):
   def __init__(self,val,keys=[]):
     if isinstance(val,flip):
       self._data=val
@@ -372,28 +376,23 @@ class table:
         raise KeyError
       return None != self._data._keys.index(item,raise_miss=False)
 
-  @staticmethod
-  def _write(val,message):
-    if flip == val._type:
-      flip._write(val,message)
-    else:
-      q_dict._write(val,message)
+def _unknown_collection(x):
+  return '__iter__' in dir(x) and not (isinstance(x,q_list) or isinstance(x,q_dict) or isinstance(x,table))
 
 def _recurse_collections(c):
-  unknown_collection = lambda x:'__iter__' in dir(x) and not isinstance(x,q_list) or isinstance(x,q_dict) or isinstance(x,table)
-  if not unknown_collection(c):
+  if not _unknown_collection(c):
     return c
   if isinstance(c,dict):
     return q_dict(c)
   elif isinstance(c,list):
     for (i,e) in enumerate(c):
-      if unknown_collection(e):
+      if _unknown_collection(e):
         c[i] = _recurse_collections(e)
     return q_list(c)
   else:
     raise ValueError("Unknown collection type: " + str(type(c)))
 
-parser.types['dict'] = TranslateType(dict,99,overwrite_write=q_dict._write,overwrite_read=q_dict._read)
+parser.types['dict'] = TranslateType(q_dict,99,overwrite_write=q_dict._write,overwrite_read=q_dict._read)
 parser.types['flip'] = TranslateType(flip,98,overwrite_write=flip._write,overwrite_read=flip._read)
 parser.types['list'] = TranslateType(q_list,0,overwrite_write=q_list._write,overwrite_read=q_list._read)
-parser.types['table'] = TranslateType(table,overwrite_write=table._write)
+parser.types['table'] = TranslateType(table)

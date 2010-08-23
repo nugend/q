@@ -22,6 +22,8 @@ class Parser:
 
   def type(self,x):
     if isinstance(x,list) or (isinstance(x,q_str) and not x.is_char): return self.types['list']
+    if isinstance(x,self.types['table'].type):
+      return self.type(x._data)
     t = self._type_dict.get(type(x))
     if t: return t
     for (inherited_type,t) in self._type_preferences:
