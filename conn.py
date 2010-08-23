@@ -67,9 +67,9 @@ class conn:
       
   def __call__(self, query, *args):
     if isinstance(query, str) and args is (): 
-      self._send(q.SYNC, q_str(query))
+      self._send(conn.SYNC, q_str(query))
     else:
-      self._send(q.SYNC,[q_str(query)]+list(args))
+      self._send(conn.SYNC,[q_str(query)]+list(args))
     return self._receive()
       
   def _send(self, sync, query):
