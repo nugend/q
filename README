@@ -1,0 +1,18 @@
+== ABOUT ==
+
+The q package is a q connection library implemented in Python.
+
+== LICENSE ==
+
+This code is licensed under an MIT license.  See LICENSE for
+the full text.
+
+== MISC ==
+
+This project began as an overhaul of Matt Warren's qPy (http://bitbucket.org/halotis/qpy) library but mutated significantly in the course of the changes that were made to it. I currently do not believe that there is much of any of the code remaining from qPy, but I feel that Matt should be given credit for providing a basis to start from.
+
+== CONTACT ==
+
+Daniel Nugent 
+nugend@gmail.com
+http://github.com/DannoHung/q
