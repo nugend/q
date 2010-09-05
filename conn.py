@@ -40,11 +40,12 @@ class conn:
       except:
         raise Exception ('unable to connect to host')
       
-  def __call__(self, query, *args):
-    if isinstance(query, str) and args is (): 
-      self._send(conn.SYNC, q_str(query))
-    else:
-      self._send(conn.SYNC,[q_str(query)]+list(args))
+  def __call__(self, *args):
+    if len(args):
+      args=list(args)
+      if isinstance(args[0], str):
+        args[0]=q_str(args[0])
+      self._send(conn.SYNC,args)
     return self._receive()
       
   def _send(self, sync, query):

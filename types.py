@@ -88,7 +88,7 @@ class q_str(str):
     s.is_char=is_char
     return s
 
-class TranslateType():
+class TranslateType(object):
   def __init__(self,type=type(None),code=-128,format='x',offset=1,additional_read=None,additional_write=None,overwrite_read=None,overwrite_write=None):
     self.type=type
     if code > 0 and code < 20:
