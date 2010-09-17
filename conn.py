@@ -8,7 +8,7 @@ from parse import parser as _parser
 
 _parser.update_types()
 
-class conn:
+class conn(object):
     
   SYNC=True
   ASYNC=False
