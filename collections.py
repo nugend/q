@@ -23,7 +23,9 @@ class q_list(list):
 
   @staticmethod
   def convert_sequence(val):
-    if (not (isinstance(val,q_list) or isinstance(val,q_dict) or isinstance(val,table))) and ('__iter__' in dir(val) or '__getitem__' in dir(val) or (isinstance(val,q_str) and not val.is_char)):
+    if isinstance(val,q_str) and not val.is_char:
+      return q_list(val)
+    elif (not (isinstance(val,str) or isinstance(val,q_list) or isinstance(val,q_dict) or isinstance(val,table))) and ('__iter__' in dir(val) or '__getitem__' in dir(val)):
       return q_list(val)
     else:
       return val
