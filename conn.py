@@ -45,6 +45,8 @@ class conn(object):
       args=list(args)
       if isinstance(args[0], str):
         args[0]=q_str(args[0])
+        if len(args) == 1:
+          args=args[0]
       self._send(conn.SYNC,args)
     return self._receive()
       
