@@ -239,7 +239,7 @@ class table(object):
     if isinstance(val,flip):
       self._data=val
       self._type=flip
-    elif (isinstance(val,q_dict) and isinstance(val._keys,flip) and isinstance(val._values,flip)):
+    elif (isinstance(val,q_dict) and isinstance(val._keys,table) and isinstance(val._values,table)):
       self._data=val
       self._type=q_dict
     elif 0 < len(keys):
@@ -266,7 +266,10 @@ class table(object):
     return not self == other
 
   def __len__(self):
-    return len(self[self.cols()[0]])
+    if self._type==flip:
+      return len(self[self.cols()[0]])
+    else:
+      return len(self._data._keys)
 
   def cols(self):
     if self._type==flip:
@@ -279,6 +282,12 @@ class table(object):
       raise ValueError
     else:
       return self._data._keys
+
+  def values(self):
+    if self._type==flip:
+      raise ValueError
+    else:
+      return self._data._values
 
   @staticmethod
   def _validate_row(val,row):
