@@ -1,5 +1,5 @@
 import array
-from types import TranslateType, q_str, types
+from types import TranslateType, q_str, types, q_none
 
 class Parser:
   def __init__(self,types):
@@ -21,6 +21,7 @@ class Parser:
     
 
   def type(self,x):
+    if isinstance(x,q_none): return self.code_dict[x.code]
     if isinstance(x,list) or (isinstance(x,q_str) and not x.is_char): return self.types['list']
     if isinstance(x,self.types['table'].type):
       return self.type(x._data)

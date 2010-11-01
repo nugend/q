@@ -14,6 +14,39 @@ _MILLISECONDS_PER_DAY = int(8.64e7)
 _SECONDS_PER_DAY = 86400.0
 _MICROSECONDS_PER_DAY = _SECONDS_PER_DAY * 1e6
 
+class q_none(object):
+  def __init__(self,code):
+    self.code = code
+  def __str__(self): return "Null"
+  def __repr__(self): return "<Null>"
+
+class specials(object):
+  def __init__(self,pos_inf_q,pos_inf_py,neg_inf_q,neg_inf_py,null_q,null_py):
+    self.pos_inf_q=pos_inf_q
+    self.neg_inf_q=neg_inf_q
+    self.null_q=null_q
+    self.pos_inf_py=pos_inf_py
+    self.neg_inf_py=neg_inf_py
+    self.null_py=null_py
+
+  @staticmethod
+  def _swapper(pos_inf_1,pos_inf_2,neg_inf_1,neg_inf_2,null_1,null_2,func,x):
+    if x == pos_inf_1: return pos_inf_2
+    elif x == neg_inf_1: return neg_inf_2
+    elif x == null_1: return null_2
+    else: return func(x)
+
+  def read(self,func):
+    return lambda x: self._swapper(self.pos_inf_q,self.pos_inf_py,self.neg_inf_q,self.neg_inf_py,self.null_q,self.null_py,func,x)
+
+  def write(self,func):
+    return lambda x: self._swapper(self.pos_inf_py,self.pos_inf_q,self.neg_inf_py,self.neg_inf_q,self.null_py,self.null_q,func,x)
+
+shandlers={}
+shandlers['short']=specials(32767,32767,-32767,-32767,-32768,q_none(5))
+shandlers['int']=specials(2147483647,2147483647,-2147483647,-2147483647,-2147483648,q_none(6))
+shandlers['long']=specials(9223372036854775807,9223372036854775807,-9223372036854775807,-9223372036854775807,-9223372036854775808,q_none(7))
+shandlers['time']=specials(2147483647,time.max,-2147483647,time.min,-2147483648,q_none(19))
 
 class month(date):
   @classmethod
@@ -126,8 +159,8 @@ types = {}
 
 types['bool'] = TranslateType(bool,1,'b',1)
 types['byte'] = TranslateType(code=4,format='b',offset=1)
-types['int'] = TranslateType(int,6,'i',4)
-types['short'] = TranslateType(code=5,format='i',offset=2)
+types['int'] = TranslateType(int,6,'i',4,additional_read=shandlers['int'].read(lambda x:x),additional_write=shandlers['int'].write(lambda x:x))
+types['short'] = TranslateType(code=5,format='h',offset=2)
 types['float'] = TranslateType(float,9,'d',8)
 types['real'] = TranslateType(code=8,format='f',offset=4)
 types['long'] = TranslateType(long,7,'q',8)
@@ -138,4 +171,4 @@ types['date'] = TranslateType(date,14,'i',4,additional_write=write_date,addition
 types['datetime'] = TranslateType(datetime,15,'d',8,additional_write=write_datetime,additional_read=read_datetime)
 types['minute'] = TranslateType(minute,17,'i',4,additional_write=int,additional_read=minute.from_int)
 types['second'] = TranslateType(second,18,'i',4,additional_write=int,additional_read=second.from_int)
-types['time'] = TranslateType(time,19,'i',4,additional_write=write_time,additional_read=read_time)
+types['time'] = TranslateType(time,19,'i',4,additional_write=shandlers['time'].write(write_time),additional_read=shandlers['time'].read(read_time))
