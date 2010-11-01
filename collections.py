@@ -125,6 +125,7 @@ class q_list(list):
     if tcode is CHAR_CODE:
       return (q_str(''.join(val)),offset)
     else:
+      val._determine_type()
       return (val,offset)
 
 class q_dict(object,DictMixin):
