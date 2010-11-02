@@ -33,7 +33,7 @@ class specials(object):
   def _swapper(pos_inf_1,pos_inf_2,neg_inf_1,neg_inf_2,null_1,null_2,func,x):
     if x == pos_inf_1: return pos_inf_2
     elif x == neg_inf_1: return neg_inf_2
-    elif x == null_1: return null_2
+    elif (x == null_1) or x != x: return null_2
     else: return func(x)
 
   def read(self,func):
@@ -41,12 +41,6 @@ class specials(object):
 
   def write(self,func):
     return lambda x: self._swapper(self.pos_inf_py,self.pos_inf_q,self.neg_inf_py,self.neg_inf_q,self.null_py,self.null_q,func,x)
-
-shandlers={}
-shandlers['short']=specials(32767,32767,-32767,-32767,-32768,q_none(5))
-shandlers['int']=specials(2147483647,2147483647,-2147483647,-2147483647,-2147483648,q_none(6))
-shandlers['long']=specials(9223372036854775807,9223372036854775807,-9223372036854775807,-9223372036854775807,-9223372036854775808,q_none(7))
-shandlers['time']=specials(2147483647,time.max,-2147483647,time.min,-2147483648,q_none(19))
 
 class month(date):
   @classmethod
@@ -84,6 +78,17 @@ class second(time):
 
   def __int__(self):
     return (self.hour * 3600 + self.minute * 60 + self.second)
+
+shandlers={}
+shandlers['short']=specials(32767,32767,-32767,-32767,-32768,q_none(5))
+shandlers['int']=specials(2147483647,2147483647,-2147483647,-2147483647,-2147483648,q_none(6))
+shandlers['long']=specials(9223372036854775807,9223372036854775807,-9223372036854775807,-9223372036854775807,-9223372036854775808,q_none(7))
+shandlers['date']=specials(2147483647,date.max,-2147483647,date.min,-2147483648,q_none(14))
+shandlers['month']=specials(2147483647,month.from_date(date.max),-2147483647,month.from_date(date.min),-2147483648,q_none(13))
+shandlers['datetime']=specials(float('inf'),datetime.max,float('-inf'),datetime.min,float('nan'),q_none(15))
+shandlers['time']=specials(2147483647,time.max,-2147483647,time.min,-2147483648,q_none(19))
+shandlers['minute']=specials(2147483647,minute.from_time(time.max),-2147483647,minute.from_time(time.min),-2147483648,q_none(17))
+shandlers['second']=specials(2147483647,second.from_time(time.max),-2147483647,second.from_time(time.min),-2147483648,q_none(18))
 
 def read_time(val):
   return time(val/_MILLISECONDS_PER_HOUR,(val/_MILLISECONDS_PER_MINUTE)%60,(val/1000)%60,microsecond=1000*(val%1000))
@@ -160,15 +165,15 @@ types = {}
 types['bool'] = TranslateType(bool,1,'b',1)
 types['byte'] = TranslateType(code=4,format='b',offset=1)
 types['int'] = TranslateType(int,6,'i',4,additional_read=shandlers['int'].read(lambda x:x),additional_write=shandlers['int'].write(lambda x:x))
-types['short'] = TranslateType(code=5,format='h',offset=2)
+types['short'] = TranslateType(code=5,format='h',offset=2,additional_read=shandlers['short'].read(lambda x:x),additional_write=shandlers['short'].write(lambda x:x))
 types['float'] = TranslateType(float,9,'d',8)
 types['real'] = TranslateType(code=8,format='f',offset=4)
-types['long'] = TranslateType(long,7,'q',8)
+types['long'] = TranslateType(long,7,'q',8,additional_read=shandlers['long'].read(lambda x:x),additional_write=shandlers['long'].write(lambda x:x))
 types['char'] = TranslateType(q_str,10,'c',1,additional_read=lambda x: q_str(x,True))
 types['symbol'] = TranslateType(str,11,'b',None,overwrite_read=read_symbol,overwrite_write = write_symbol)
-types['month'] = TranslateType(month,13,'i',4,additional_write=int,additional_read=month.from_int)
-types['date'] = TranslateType(date,14,'i',4,additional_write=write_date,additional_read=read_date)
-types['datetime'] = TranslateType(datetime,15,'d',8,additional_write=write_datetime,additional_read=read_datetime)
-types['minute'] = TranslateType(minute,17,'i',4,additional_write=int,additional_read=minute.from_int)
-types['second'] = TranslateType(second,18,'i',4,additional_write=int,additional_read=second.from_int)
+types['month'] = TranslateType(month,13,'i',4,additional_write=shandlers['month'].write(int),additional_read=shandlers['month'].read(month.from_int))
+types['date'] = TranslateType(date,14,'i',4,additional_write=shandlers['date'].write(write_date),additional_read=shandlers['date'].read(read_date))
+types['datetime'] = TranslateType(datetime,15,'d',8,additional_write=shandlers['datetime'].write(write_datetime),additional_read=shandlers['datetime'].read(read_datetime))
+types['minute'] = TranslateType(minute,17,'i',4,additional_write=shandlers['minute'].write(int),additional_read=shandlers['minute'].read(minute.from_int))
+types['second'] = TranslateType(second,18,'i',4,additional_write=shandlers['second'].write(int),additional_read=shandlers['second'].read(second.from_int))
 types['time'] = TranslateType(time,19,'i',4,additional_write=shandlers['time'].write(write_time),additional_read=shandlers['time'].read(read_time))
