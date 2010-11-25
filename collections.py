@@ -119,6 +119,7 @@ class q_list(list):
   def _read(reader,tcode,endianness,offset,bytes):
     (n, offset) = parser.read_integer(endianness,offset+1,bytes)
     val = q_list([])
+    if n == 0: return (val,offset)
     for i in range(0, n):
         (item,offset) = reader(endianness,offset,bytes)
         val.append(item)
