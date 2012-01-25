@@ -3,7 +3,7 @@ import select
 import array
 import cStringIO
 
-from types import q_str
+from qtypes import q_str
 from parse import parser as _parser
 
 _parser.update_types()

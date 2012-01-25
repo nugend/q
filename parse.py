@@ -1,5 +1,5 @@
 import array
-from types import TranslateType, q_str, types, q_none
+from qtypes import TranslateType, q_str, types, q_none
 
 class Parser:
   def __init__(self,types):

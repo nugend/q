@@ -1,6 +1,6 @@
 from itertools import izip
 from parse import parser
-from types import TranslateType, q_str
+from qtypes import TranslateType, q_str
 from UserDict import DictMixin
 
 #NOTE: Dealing with the impedance mismatch between Q symbols, chars and char lists and Python strings is a major pain-point
