@@ -1,6 +1,6 @@
 = DEPRECATED =
 
-This library should only be used if you have a requirement to use Python 2.6 or lower. Please use exxeleron/qPython if you are able to use Python 2.7
+This library should only be used if you have a requirement to use Python 2.6 or lower. Please use [exxeleron/qPython](https://github.com/exxeleron/qPython) if you are able to use Python 2.7
 
 == ABOUT ==
 
